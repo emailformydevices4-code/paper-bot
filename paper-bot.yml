@@ -1,0 +1,41 @@
+name: paper-trading-bot
+
+on:
+  schedule:
+    - cron: "30 11 * * 1-5"   # 17:00 IST, Monday to Friday
+  workflow_dispatch:
+    inputs:
+      force_reopt:
+        description: "Re-run the strategy search now"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paper-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install yfinance pandas numpy
+      - name: Run bot
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FORCE_REOPT: ${{ inputs.force_reopt }}
+        run: python bot.py
+      - name: Save account state
+        run: |
+          git config user.name "paper-bot"
+          git config user.email "paper-bot@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || (git commit -m "bot update" && git push)
