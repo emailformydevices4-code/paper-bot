@@ -1,0 +1,433 @@
+{
+ "start_capital": 10000.0,
+ "cash": 10000.0,
+ "positions": {},
+ "pending": [
+  {
+   "symbol": "PNB",
+   "side": "BUY",
+   "signal_date": "2026-11-17",
+   "reason": "entry signal"
+  }
+ ],
+ "trades": [],
+ "equity_curve": [
+  {
+   "date": "2026-11-17",
+   "equity": 10000.0,
+   "nifty": 25387.400390625
+  }
+ ],
+ "strategies": {
+  "SUZLON": {
+   "kind": "MA",
+   "params": [
+    27,
+    55
+   ],
+   "passed": false,
+   "reason": "profitable in only 1/3 windows",
+   "oos": {
+    "ret": 0.5067294112809242,
+    "sharpe": 0.5990525080312418,
+    "dd": -0.40543924507440743,
+    "signals": 11
+   },
+   "buy_hold": {
+    "ret": 0.16949684021900358,
+    "sharpe": 0.3303818939442556,
+    "dd": -0.5997638400554567
+   },
+   "folds": [
+    1.032,
+    -0.106,
+    -0.171
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "YESBANK": {
+   "kind": "RSI",
+   "params": [
+    14,
+    20,
+    55
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe -0.44 < 0.5; profitable in only 0/3 windows",
+   "oos": {
+    "ret": -0.23434217530052004,
+    "sharpe": -0.4384449272408518,
+    "dd": -0.38123447789834297,
+    "signals": 15
+   },
+   "buy_hold": {
+    "ret": 0.09174311712555405,
+    "sharpe": 0.26468063055556423,
+    "dd": -0.5175159298540329
+   },
+   "folds": [
+    -0.054,
+    -0.053,
+    -0.145
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "IDEA": {
+   "kind": "MA",
+   "params": [
+    6,
+    95
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe 0.10 < 0.5",
+   "oos": {
+    "ret": -0.12167113449700084,
+    "sharpe": 0.1031875288268008,
+    "dd": -0.5641821235803153,
+    "signals": 11
+   },
+   "buy_hold": {
+    "ret": 0.12328770821780832,
+    "sharpe": 0.34221830232858397,
+    "dd": -0.6679265689332465
+   },
+   "folds": [
+    0.036,
+    -0.171,
+    0.023
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "NHPC": {
+   "kind": "RSI",
+   "params": [
+    14,
+    30,
+    75
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe 0.16 < 0.5",
+   "oos": {
+    "ret": 0.03701378942388178,
+    "sharpe": 0.15959176433679423,
+    "dd": -0.22560253851345724,
+    "signals": 14
+   },
+   "buy_hold": {
+    "ret": 0.5823611078383504,
+    "sharpe": 0.6240538765894348,
+    "dd": -0.3701490195088991
+   },
+   "folds": [
+    -0.148,
+    0.07,
+    0.138
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "IRFC": {
+   "kind": "MA",
+   "params": [
+    27,
+    195
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe 0.46 < 0.5; profitable in only 1/3 windows",
+   "oos": {
+    "ret": 0.34925958407541136,
+    "sharpe": 0.4570136085190985,
+    "dd": -0.5567683857884118,
+    "signals": 13
+   },
+   "buy_hold": {
+    "ret": 0.21600138739379715,
+    "sharpe": 0.3601201110665838,
+    "dd": -0.6462632912105608
+   },
+   "folds": [
+    1.076,
+    -0.269,
+    -0.11
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "PNB": {
+   "kind": "MA",
+   "params": [
+    48,
+    80
+   ],
+   "passed": true,
+   "reason": "passed all checks",
+   "oos": {
+    "ret": 0.3375341957001068,
+    "sharpe": 0.6052956872205738,
+    "dd": -0.23536199738055485,
+    "signals": 10
+   },
+   "buy_hold": {
+    "ret": 1.3074054961664707,
+    "sharpe": 1.044741983011229,
+    "dd": -0.37662921324873233
+   },
+   "folds": [
+    0.037,
+    0.139,
+    0.133
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "IOB": {
+   "kind": "MA",
+   "params": [
+    48,
+    195
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe 0.42 < 0.5; profitable in only 1/3 windows; too few trades to judge",
+   "oos": {
+    "ret": 0.2717545570743052,
+    "sharpe": 0.4158975979034293,
+    "dd": -0.40683386276516964,
+    "signals": 3
+   },
+   "buy_hold": {
+    "ret": -0.14751012717368628,
+    "sharpe": 0.06934354931146983,
+    "dd": -0.6399246734997565
+   },
+   "folds": [
+    0.483,
+    0.0,
+    -0.143
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "UCOBANK": {
+   "kind": "MA",
+   "params": [
+    39,
+    200
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe 0.33 < 0.5; profitable in only 1/3 windows; too few trades to judge",
+   "oos": {
+    "ret": 0.16998971747449443,
+    "sharpe": 0.32644962258092886,
+    "dd": -0.3884922903688468,
+    "signals": 4
+   },
+   "buy_hold": {
+    "ret": -0.27932756167100814,
+    "sharpe": -0.0836315262607056,
+    "dd": -0.6725357107009612
+   },
+   "folds": [
+    0.35,
+    -0.037,
+    -0.1
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "SOUTHBANK": {
+   "kind": "MA",
+   "params": [
+    24,
+    170
+   ],
+   "passed": false,
+   "reason": "no better than just holding",
+   "oos": {
+    "ret": 1.2789033985977651,
+    "sharpe": 0.9439017843567509,
+    "dd": -0.43821916329043786,
+    "signals": 6
+   },
+   "buy_hold": {
+    "ret": 1.6031014619004145,
+    "sharpe": 1.014891296465833,
+    "dd": -0.4135490109444959
+   },
+   "folds": [
+    0.038,
+    0.37,
+    0.603
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "BANKINDIA": {
+   "kind": "BRK",
+   "params": [
+    100,
+    5
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe -0.74 < 0.5; profitable in only 0/3 windows",
+   "oos": {
+    "ret": -0.30018714499064303,
+    "sharpe": -0.73948057548241,
+    "dd": -0.36911627356901133,
+    "signals": 19
+   },
+   "buy_hold": {
+    "ret": 0.9199561366198603,
+    "sharpe": 0.7993730189602296,
+    "dd": -0.4063127552323301
+   },
+   "folds": [
+    -0.152,
+    -0.059,
+    -0.124
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "SAIL": {
+   "kind": "MA",
+   "params": [
+    6,
+    170
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe 0.22 < 0.5; no better than just holding",
+   "oos": {
+    "ret": 0.06990394464759508,
+    "sharpe": 0.2211430261025097,
+    "dd": -0.4814553765873598,
+    "signals": 19
+   },
+   "buy_hold": {
+    "ret": 1.1413968209705234,
+    "sharpe": 0.8293393715925209,
+    "dd": -0.4218672164782804
+   },
+   "folds": [
+    0.207,
+    -0.214,
+    0.128
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "NMDC": {
+   "kind": "MA",
+   "params": [
+    15,
+    50
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe 0.16 < 0.5; profitable in only 1/3 windows; no better than just holding",
+   "oos": {
+    "ret": 0.015048490022947059,
+    "sharpe": 0.1563915643762637,
+    "dd": -0.3831865595577808,
+    "signals": 17
+   },
+   "buy_hold": {
+    "ret": 0.5554216649809522,
+    "sharpe": 0.6092615575381624,
+    "dd": -0.35775756050366914
+   },
+   "folds": [
+    0.243,
+    -0.054,
+    -0.137
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "TATASTEEL": {
+   "kind": "MA",
+   "params": [
+    24,
+    90
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe 0.15 < 0.5; profitable in only 1/3 windows; no better than just holding",
+   "oos": {
+    "ret": 0.024328474376040132,
+    "sharpe": 0.15018087634670127,
+    "dd": -0.3320556632161715,
+    "signals": 14
+   },
+   "buy_hold": {
+    "ret": 0.6115190410969207,
+    "sharpe": 0.7093817650258228,
+    "dd": -0.3168278502571298
+   },
+   "folds": [
+    0.131,
+    -0.012,
+    -0.083
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "ITC": {
+   "kind": "MA",
+   "params": [
+    15,
+    200
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe -0.56 < 0.5; profitable in only 1/3 windows",
+   "oos": {
+    "ret": -0.17506534712605426,
+    "sharpe": -0.5615843773222314,
+    "dd": -0.28378870303975734,
+    "signals": 15
+   },
+   "buy_hold": {
+    "ret": -0.21610337837578708,
+    "sharpe": -0.31974684601226133,
+    "dd": -0.45037091793431916
+   },
+   "folds": [
+    0.006,
+    -0.107,
+    -0.081
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  },
+  "SBIN": {
+   "kind": "RSI",
+   "params": [
+    21,
+    30,
+    75
+   ],
+   "passed": false,
+   "reason": "unseen Sharpe 0.47 < 0.5",
+   "oos": {
+    "ret": 0.1685924422489098,
+    "sharpe": 0.4711766159202163,
+    "dd": -0.14850156060892727,
+    "signals": 7
+   },
+   "buy_hold": {
+    "ret": 1.1169181875947811,
+    "sharpe": 1.1461825265266712,
+    "dd": -0.23944134526280125
+   },
+   "folds": [
+    0.174,
+    -0.041,
+    0.038
+   ],
+   "tested": 632,
+   "optimized_on": "2026-11-17"
+  }
+ },
+ "last_data_date": "2026-11-17",
+ "nifty_start": 25387.400390625
+}
