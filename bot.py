@@ -13,6 +13,7 @@ Every weekday after market close it:
 Nothing here places real orders. Not financial advice.
 """
 import os
+import re
 import sys
 import json
 import html
@@ -54,6 +55,19 @@ FOLD_DAYS = 252                  # ... of about 1 year each
 MIN_OOS_SHARPE = 0.5
 MIN_OOS_SIGNALS = 6              # at least ~3 round trips in the test windows
 MIN_PROFITABLE_FOLDS = 2         # profitable in at least 2 of 3 windows
+
+PROFILE = "balanced"             # "balanced" or "aggressive" (bigger bets, looser exam, bigger swings)
+if PROFILE == "aggressive":
+    MAX_POSITIONS, MAX_POSITION_PCT = 6, 0.40
+    STOP_LOSS, MIN_OOS_SHARPE = 0.20, 0.3
+
+# Monte Carlo risk simulator (python bot.py --simulate)
+SIM_PATHS = 200000               # simulated one-year futures per stock
+SIM_DAYS = 252
+SIM_BLOCK = 10                   # resample in 10-day blocks to keep streaks realistic
+SIZES = [0.10, 0.25, 0.40, 0.60, 0.80, 1.00]   # share of account put into the stock
+DD_LIMIT = 0.30                  # risk budget: a 30% drop ...
+DD_PROB_LIMIT = 0.10             # ... may happen in at most 10% of simulated years
 
 STATE_FILE = os.getenv("STATE_FILE", "state.json")
 WATCHLIST_FILE = os.getenv("WATCHLIST_FILE", "watchlist.txt")
@@ -230,7 +244,7 @@ def search(df, today):
             "reason": "; ".join(problems) if problems else "passed all checks",
             "oos": {**o, "signals": signals}, "buy_hold": b,
             "folds": [round(x, 3) for x in fold_rets],
-            "tested": len(combos), "optimized_on": today}
+            "tested": len(combos), "optimized_on": today, "_oos": np.concatenate(oos)}
 
 
 def live_signal(df, strat):
@@ -354,6 +368,7 @@ def optimize_if_due(state, data, watch, last_date, force, msgs):
             state["strategies"][sym] = {"passed": False, "reason": why, "optimized_on": last_date}
             continue
         res = search(df, last_date)
+        res.pop("_oos", None)
         state["strategies"][sym] = res
         if res["passed"] and not (old and old.get("passed")):
             msgs.append(f"{sym}: strategy {res['kind']}{res['params']} PASSED the unseen-data exam "
@@ -541,6 +556,67 @@ def live_main():
     json.dump(state, open(STATE_FILE, "w"), indent=1)
 
 
+# ------------------------- Monte Carlo ----------------------------------
+def simulate(r):
+    """Resample the strategy's unseen-data daily returns into SIM_PATHS possible
+    one-year futures. For each position size, collect final return and worst drop."""
+    rng = np.random.default_rng(42)
+    n, nb, chunk = len(r), -(-SIM_DAYS // SIM_BLOCK), 25000
+    fin = {f: [] for f in SIZES}
+    dd = {f: [] for f in SIZES}
+    for _ in range(SIM_PATHS // chunk):
+        starts = rng.integers(0, n - SIM_BLOCK + 1, size=(chunk, nb))
+        idx = (starts[:, :, None] + np.arange(SIM_BLOCK)).reshape(chunk, -1)[:, :SIM_DAYS]
+        R = r[idx]
+        for f in SIZES:
+            eq = np.cumprod(1 + f * R, axis=1)
+            peak = np.maximum(np.maximum.accumulate(eq, axis=1), 1.0)
+            fin[f].append(eq[:, -1] - 1)
+            dd[f].append((eq / peak - 1).min(axis=1))
+    out = {}
+    for f in SIZES:
+        a, d = np.concatenate(fin[f]), np.concatenate(dd[f])
+        out[f] = {"median": float(np.median(a)), "p5": float(np.percentile(a, 5)),
+                  "p95": float(np.percentile(a, 95)), "loss": float((a < 0).mean()),
+                  "deep": float((d < -DD_LIMIT).mean())}
+    safe = [f for f in SIZES if out[f]["deep"] <= DD_PROB_LIMIT]
+    out["best"] = max(safe, key=lambda f: out[f]["median"]) if safe else None
+    return out
+
+
+def simulate_main():
+    today, rows = dt.date.today().isoformat(), []
+    for sym in read_watchlist():
+        df = load(sym)
+        if df is None or not eligible(df)[0]:
+            continue
+        res = search(df, today)
+        rows.append((res["oos"]["sharpe"], sym, res))
+    rows.sort(key=lambda x: -x[0])
+    if not rows:
+        notify("Monte Carlo: no eligible stocks to simulate.")
+        return
+    lines = [f"\U0001F3B2 <b>Monte Carlo</b> \u00B7 {SIM_PATHS:,} simulated years per stock",
+             f"Risk budget: at most {DD_PROB_LIMIT:.0%} chance of a {DD_LIMIT:.0%} drop", ""]
+    for _, sym, res in rows[:6]:
+        o = simulate(res.pop("_oos"))
+        badge = "\u2705" if res["passed"] else "\u274C failed exam"
+        lines.append(f"<b>{html.escape(sym)}</b> \u00B7 {res['kind']}{res['params']} {badge}")
+        for f in (0.25, 1.00):
+            x = o[f]
+            lines.append(f"\u2022 {f:.0%} size: median {x['median']:+.0%}, 90% range {x['p5']:+.0%} to {x['p95']:+.0%}, "
+                         f"loss chance {x['loss']:.0%}, {DD_LIMIT:.0%}-drop chance {x['deep']:.0%}")
+        b = o["best"]
+        if b and o[b]["median"] <= 0:
+            b = None
+        lines.append(f"\u27A1 Best size within budget: {b:.0%} (median {o[b]['median']:+.0%})" if b
+                     else "\u27A1 No profitable size within the risk budget. Avoid.")
+        lines.append("")
+    lines.append("Ranges describe possible futures if the past repeats. They are not predictions.")
+    print(re.sub("<[^>]+>", "", "\n".join(lines)))
+    send_telegram("\n".join(lines))
+
+
 # ----------------------------- main -----------------------------------
 def main():
     force = os.getenv("FORCE_REOPT", "").lower() == "true" or "--reoptimize" in sys.argv
@@ -594,5 +670,7 @@ if __name__ == "__main__":
         report()
     elif "--live" in sys.argv:
         live_main()
+    elif "--simulate" in sys.argv:
+        simulate_main()
     else:
         main()
