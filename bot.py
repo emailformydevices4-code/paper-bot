@@ -20,6 +20,7 @@ import time
 import urllib.parse
 import urllib.request
 import datetime as dt
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -36,6 +37,9 @@ STOP_LOSS = 0.15                 # sell if price falls 15% below your buy price
 MAX_ROUNDTRIP_FEE_PCT = 0.04     # skip a buy if buy+sell fees exceed 4% of it
 REOPT_EVERY_DAYS = 28            # how often to re-run the strategy search
 DAILY_HEARTBEAT = True           # send a short Telegram note even on quiet days
+POLL_SECONDS = 300               # live mode: check prices every 5 minutes
+LIVE_MAX_MINUTES = int(os.getenv("LIVE_MAX_MINUTES", "340"))  # live mode time limit
+IST = ZoneInfo("Asia/Kolkata")
 
 # Costs. CHECK YOUR BROKER'S CURRENT CHARGES and edit these.
 BROKERAGE_PCT = 0.001            # 0.1% of order value ...
@@ -259,6 +263,22 @@ def equity(state, data):
     return v
 
 
+def execute_sell(state, sym, raw_price, date_str, reason, msgs):
+    pos = state["positions"].get(sym)
+    if not pos:
+        return
+    price = raw_price * (1 - SLIPPAGE)
+    val = pos["qty"] * price
+    f = fees(val, "SELL")
+    pnl = (val - f) - (pos["qty"] * pos["avg_price"] + pos["buy_fees"])
+    state["cash"] += val - f
+    del state["positions"][sym]
+    state["trades"].append({"date": date_str, "symbol": sym, "side": "SELL", "qty": pos["qty"],
+                            "price": round(price, 2), "fees": round(f, 2),
+                            "pnl": round(pnl, 2), "reason": reason})
+    msgs.append(f"SOLD {pos['qty']} {sym} @ Rs {price:.2f} | P/L Rs {pnl:+.0f} ({reason})")
+
+
 def fill_pending(state, data, msgs):
     still = []
     for o in state["pending"]:
@@ -288,19 +308,7 @@ def fill_pending(state, data, msgs):
                                     "fees": round(f, 2), "pnl": None, "reason": o["reason"]})
             msgs.append(f"BOUGHT {qty} {sym} @ Rs {price:.2f} (fees Rs {f:.0f})")
         else:
-            pos = state["positions"].get(sym)
-            if not pos:
-                continue
-            price = float(bar["Open"]) * (1 - SLIPPAGE)
-            val = pos["qty"] * price
-            f = fees(val, "SELL")
-            pnl = (val - f) - (pos["qty"] * pos["avg_price"] + pos["buy_fees"])
-            state["cash"] += val - f
-            del state["positions"][sym]
-            state["trades"].append({"date": fill_date.date().isoformat(), "symbol": sym,
-                                    "side": "SELL", "qty": pos["qty"], "price": round(price, 2),
-                                    "fees": round(f, 2), "pnl": round(pnl, 2), "reason": o["reason"]})
-            msgs.append(f"SOLD {pos['qty']} {sym} @ Rs {price:.2f} | P/L Rs {pnl:+.0f} ({o['reason']})")
+            execute_sell(state, sym, float(bar["Open"]), fill_date.date().isoformat(), o["reason"], msgs)
     state["pending"] = still
 
 
@@ -385,9 +393,10 @@ def pretty(m):
     return "\u2139\uFE0F " + html.escape(m, quote=False)
 
 
-def summary_html(state, data=None, full=True):
+def summary_html(state, data=None, full=True, eq=None):
     ec = state["equity_curve"]
-    eq = ec[-1]["equity"] if ec else state["cash"]
+    if eq is None:
+        eq = ec[-1]["equity"] if ec else state["cash"]
     ret = eq / state["start_capital"] - 1
     nift = None
     if ec and ec[-1].get("nifty") and state.get("nifty_start"):
@@ -447,6 +456,91 @@ def report():
         print(sym, "PASS" if v.get("passed") else "FAIL", "-", v.get("reason"))
 
 
+# ---------------------------- live mode --------------------------------
+def now_ist():
+    return dt.datetime.now(IST)
+
+
+def intraday(sym):
+    """5-minute bars for today (Yahoo data is usually ~15 min behind)."""
+    import yfinance as yf
+    t = sym if ("." in sym or sym.startswith("^")) else sym + ".NS"
+    try:
+        h = yf.Ticker(t).history(period="1d", interval="5m")
+    except Exception:
+        return None
+    if h is None or h.empty:
+        return None
+    h.index = h.index.tz_convert(IST)
+    return h
+
+
+def today_bar(h, today):
+    h = h[h.index.date == today]
+    if h.empty:
+        return None, None
+    bar = {"Open": float(h["Open"].iloc[0]), "High": float(h["High"].max()),
+           "Low": float(h["Low"].min()), "Close": float(h["Close"].iloc[-1]),
+           "Volume": float(h["Volume"].sum())}
+    return bar, h.index[-1]
+
+
+def live_main():
+    """Runs during market hours: fills queued orders at the real open and
+    watches stop-losses. Signals and re-optimising stay in the daily run."""
+    state, msgs = load_state(), []
+    watch = sorted(set(state["positions"]) | {o["symbol"] for o in state["pending"]})
+    if not watch:
+        print("Nothing to watch (no open positions or queued orders). Done.")
+        return
+    hist = {s: load(s) for s in watch}
+    hist = {s: d for s, d in hist.items() if d is not None}
+    started, announced = time.time(), False
+    while True:
+        now = now_ist()
+        if now.time() >= dt.time(15, 30) or (time.time() - started) / 60 > LIVE_MAX_MINUTES:
+            break
+        live, newest = {}, None
+        if now.time() >= dt.time(9, 15):
+            for s in watch:
+                h = intraday(s)
+                bar, ts = today_bar(h, now.date()) if h is not None else (None, None)
+                if bar and s in hist:
+                    live[s] = bar
+                    newest = ts if newest is None or ts > newest else newest
+            if not live and now.time() > dt.time(10, 30):
+                print("No trading data for today (market holiday?). Done.")
+                break
+        if live:
+            ldata = {}
+            for s, bar in live.items():
+                base = hist[s][hist[s].index < pd.Timestamp(now.date())]
+                ldata[s] = pd.concat([base, pd.DataFrame([bar], index=[pd.Timestamp(now.date())])])
+            if not announced:
+                age = max(0, int((now - (newest + dt.timedelta(minutes=5))).total_seconds() // 60))
+                send_telegram(f"\U0001F6F0 <b>Live monitor on</b> \u00B7 watching {html.escape(', '.join(watch))}\n"
+                              f"Prices are about {age} min behind.")
+                announced = True
+            fill_pending(state, ldata, msgs)
+            for sym, p in list(state["positions"].items()):
+                if sym in ldata and ldata[sym]["Close"].iloc[-1] <= p["avg_price"] * (1 - STOP_LOSS):
+                    state["pending"] = [o for o in state["pending"] if not (o["symbol"] == sym and o["side"] == "SELL")]
+                    execute_sell(state, sym, float(ldata[sym]["Close"].iloc[-1]),
+                                 now.date().isoformat(), "stop-loss (live)", msgs)
+            if msgs:
+                json.dump(state, open(STATE_FILE, "w"), indent=1)
+                send_telegram("\n".join([f"\u26A1 <b>Live update</b> \u00B7 {now:%d %b %H:%M}", ""]
+                                         + [pretty(m) for m in msgs] + ["", summary_html(state, ldata, full=True, eq=equity(state, ldata))]))
+                print("\n".join(msgs))
+                msgs = []
+                watch = sorted(set(state["positions"]) | {o["symbol"] for o in state["pending"]})
+                if not watch:
+                    print("Nothing left to watch. Done.")
+                    break
+        time.sleep(POLL_SECONDS)
+    json.dump(state, open(STATE_FILE, "w"), indent=1)
+
+
 # ----------------------------- main -----------------------------------
 def main():
     force = os.getenv("FORCE_REOPT", "").lower() == "true" or "--reoptimize" in sys.argv
@@ -498,5 +592,7 @@ def main():
 if __name__ == "__main__":
     if "--report" in sys.argv:
         report()
+    elif "--live" in sys.argv:
+        live_main()
     else:
         main()
