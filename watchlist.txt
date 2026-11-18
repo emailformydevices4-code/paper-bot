@@ -1,0 +1,18 @@
+# One NSE ticker per line. Lines starting with # are ignored.
+# The bot skips any stock below Rs 10, too illiquid, or with too little history,
+# and tells you why. Add .BO at the end for BSE-only stocks (e.g. XYZ.BO).
+SUZLON
+YESBANK
+IDEA
+NHPC
+IRFC
+PNB
+IOB
+UCOBANK
+SOUTHBANK
+BANKINDIA
+SAIL
+NMDC
+TATASTEEL
+ITC
+SBIN
