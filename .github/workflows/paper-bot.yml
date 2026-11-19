@@ -3,6 +3,7 @@ name: paper-trading-bot
 on:
   schedule:
     - cron: "30 11 * * 1-5"   # 17:00 IST, Monday to Friday
+    - cron: "0 13 * * 1-5"    # 18:30 IST backup (harmless if the first already ran)
   workflow_dispatch:
     inputs:
       force_reopt:
